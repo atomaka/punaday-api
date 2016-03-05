@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"golang.org/x/net/html"
 )
@@ -25,6 +26,7 @@ type Error struct {
 }
 
 func main() {
+	http.HandleFunc("/puns/today", TodayPun)
 	http.HandleFunc("/puns/random", RandomPun)
 	http.HandleFunc("/puns/", ShowPun)
 	http.HandleFunc("/", NotFound)
@@ -61,6 +63,21 @@ func RandomPun(w http.ResponseWriter, r *http.Request) {
 	pun := getPun(RANDOM_PUN)
 
 	WritePun(w, r, pun)
+}
+
+func TodayPun(w http.ResponseWriter, r *http.Request) {
+	pun := getPun(PUN_BASE)
+
+	pun.Text = stripQuotes(pun.Text)
+
+	WritePun(w, r, pun)
+}
+
+func stripQuotes(punText string) string {
+	punText = strings.Replace(punText, "“", "", 1)
+	punText = strings.Replace(punText, "”", "", 1)
+
+	return punText
 }
 
 func getPun(url string) Pun {
