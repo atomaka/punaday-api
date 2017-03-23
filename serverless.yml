@@ -1,0 +1,82 @@
+service: punaday-api
+
+provider:
+  name: aws
+  runtime: nodejs4.3
+  memorySize: 128
+
+plugins:
+  - serverless-plugin-optimize
+  - serverless-offline
+
+package:
+  individually: true
+
+resources:
+  Resources:
+    CloudfrontDistribution:
+      Type:  AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Aliases:
+          - ${env:DOMAIN}
+          Origins:
+          - DomainName: { "Fn::Join": [".", [ { "Ref": "ApiGatewayRestApi" }, "execute-api", { "Ref": "AWS::Region" }, "amazonaws.com"] ] }
+            OriginPath: "/production"
+            Id: APIGW
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+          DefaultCacheBehavior:
+            AllowedMethods:
+            - HEAD
+            - DELETE
+            - POST
+            - GET
+            - OPTIONS
+            - PUT
+            - PATCH
+            TargetOriginId: APIGW
+            ForwardedValues:
+              QueryString: true
+              Cookies:
+                Forward: none
+            ViewerProtocolPolicy: redirect-to-https
+            DefaultTTL: 0
+          Enabled: true
+          ViewerCertificate:
+            AcmCertificateArn: ${env:AWS_CERTIFICATE}
+            SslSupportMethod: sni-only
+    Route53RecordSet:
+      Type: AWS::Route53::RecordSetGroup
+      Properties:
+        HostedZoneName: ${env:DNS_ZONE}
+        RecordSets:
+          - Name: ${env:DOMAIN}
+            Type: A
+            AliasTarget:
+              DNSName: { "Fn::GetAtt" : [ "CloudfrontDistribution", "DomainName"] }
+              HostedZoneId: Z2FDTNDATAQYW2 # always use for cloudfront
+
+functions:
+  punsShow:
+    handler: src/puns/show.show
+    events:
+      - http:
+          path: puns/{id}
+          method: get
+          cors: true
+  punsToday:
+    handler: src/puns/show.today
+    events:
+      - http:
+          path: puns/today
+          method: get
+          cors: true
+  punsRandom:
+    handler: src/puns/show.random
+    events:
+      - http:
+          path: puns/random
+          method: get
+          cors: true
